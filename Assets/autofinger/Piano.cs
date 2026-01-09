@@ -14,6 +14,7 @@ public class Key {
 	public Color targetColor;
 
 	public Renderer renderer;
+    public Material material;
 	public bool white ;
 	public int channel ;
 	public Vector3 position;
@@ -30,7 +31,7 @@ public class Key {
 
 	public void RendererColor(Color col)
 	{
-		renderer.material.SetColor("_EmissionColor", col);
+		material.SetColor("_EmissionColor", col);
 	}
 
 }
@@ -104,7 +105,8 @@ public class Piano : MonoBehaviour {
 			keyObjects[i]._transform = key;
 			keyObjects[i].noteOn = false;
 			keyObjects[i].renderer = key.GetComponent<Renderer>();
-			keyObjects[i].defaultColor = keyObjects[i].renderer.material.GetColor("_EmissionColor");
+            keyObjects[i].material = keyObjects[i].renderer.material;
+			keyObjects[i].defaultColor = keyObjects[i].material.GetColor("_EmissionColor");
 			keyObjects[i].defaultPosition = key.position;
 			keyObjects[i].defaultRotation = key.localRotation;
 			keyObjects[i].intensity = 0f;
@@ -273,15 +275,19 @@ public class Piano : MonoBehaviour {
 	
 	void Update () {
 
+        // Optimization: Hoist loop-invariant color calculations out of the loop
+        Color targetActiveColor = activeKeyColor * emissiveAmplitude;
+        Color targetBlackColor = Color.black * emissiveAmplitude;
+
 		for (int i=0;i< keyObjects.Length;i++)
 		{
 			Key key = keyObjects[i];
 			if ( KeyColorFX.monoColor==activeKeyColorFX)
-			key.RendererColor(Color.Lerp(key.defaultColor, activeKeyColor * emissiveAmplitude, colorCurve.Evaluate(key.intensity)));
+			    key.RendererColor(Color.Lerp(key.defaultColor, targetActiveColor, colorCurve.Evaluate(key.intensity)));
 			else if (KeyColorFX.fingerColor == activeKeyColorFX)
 				key.RendererColor( Color.Lerp(key.defaultColor, key.targetColor * emissiveAmplitude, colorCurve.Evaluate( key.intensity)));
 			else
-				key.RendererColor(Color.Lerp(key.defaultColor, (new Color(0,0,0)) * emissiveAmplitude, colorCurve.Evaluate(key.intensity)));
+				key.RendererColor(Color.Lerp(key.defaultColor, targetBlackColor, colorCurve.Evaluate(key.intensity)));
 
 			key._transform.position = Vector3.Lerp(key.defaultPosition, key.targetPosition, key.intensity);
 			if ( playing)
